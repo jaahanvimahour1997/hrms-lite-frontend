@@ -539,3 +539,9 @@ th {
     position: relative;
   }
 }
+
+@media (max-width: 900px){
+  .grid[style*="grid-template-columns: 1fr 1fr"]{
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -3,7 +3,7 @@ import "./styles.css";
 import { api } from "./api";
 
 function App() {
-  const [tab, setTab] = useState("employees");
+  const [tab, setTab] = useState("dashboard");
 
   // auth
   const [token, setToken] = useState(localStorage.getItem("token") || "");
@@ -14,13 +14,6 @@ function App() {
   const [showPass, setShowPass] = useState(false);
 
   const isAuthed = !!token;
-
-  // dashboard stats
-  const [stats, setStats] = useState({
-    totalEmployees: 0,
-    presentToday: 0,
-    leavesPending: 0,
-  });
 
   // employees
   const [employees, setEmployees] = useState([]);
@@ -33,8 +26,6 @@ function App() {
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("Engineering");
   const [savingEmp, setSavingEmp] = useState(false);
-
-  // edit mode
   const [editId, setEditId] = useState(null);
 
   // attendance
@@ -54,6 +45,15 @@ function App() {
   const [lvLoading, setLvLoading] = useState(false);
   const [lvError, setLvError] = useState("");
 
+  // ---------- HELPERS ----------
+  const todayStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const toYMD = (d) => String(d).slice(0, 10);
+
+  const inRange = (d, start, end) => {
+    if (!d || !start || !end) return false;
+    return d >= start && d <= end;
+  };
+
   // ---------- AUTH ----------
   const login = async (e) => {
     e.preventDefault();
@@ -70,7 +70,8 @@ function App() {
       setToken(res.data.token);
       setAuthMsg("Login successful ✅");
 
-      await Promise.all([fetchAttendance(), fetchLeaves(), fetchStats()]);
+      await Promise.all([fetchEmployees(), fetchAttendance(), fetchLeaves()]);
+      setTab("dashboard");
     } catch (err) {
       setAuthMsg(err?.response?.data?.message || "Login failed ❌");
     } finally {
@@ -82,7 +83,7 @@ function App() {
     localStorage.removeItem("token");
     setToken("");
     setAuthMsg("Logged out ✅");
-    setTab("employees");
+    setTab("dashboard");
   };
 
   // ---------- EMPLOYEES ----------
@@ -91,7 +92,7 @@ function App() {
       setEmpLoading(true);
       setEmpError("");
       const res = await api.get("/api/employees");
-      setEmployees(res.data);
+      setEmployees(res.data || []);
     } catch (err) {
       setEmpError("Failed to load employees.");
     } finally {
@@ -99,9 +100,56 @@ function App() {
     }
   };
 
+  // ---------- ATTENDANCE ----------
+  const fetchAttendance = async () => {
+    try {
+      setAttLoading(true);
+      setAttError("");
+      const res = await api.get("/api/attendance");
+      setAttendance(res.data || []);
+    } catch (err) {
+      setAttError(err?.response?.data?.message || "Failed to load attendance.");
+    } finally {
+      setAttLoading(false);
+    }
+  };
+
+  // ---------- LEAVES ----------
+  const fetchLeaves = async () => {
+    try {
+      setLvLoading(true);
+      setLvError("");
+      const res = await api.get("/api/leaves");
+      setLeaves(res.data || []);
+    } catch (err) {
+      setLvError(err?.response?.data?.message || "Failed to load leaves.");
+    } finally {
+      setLvLoading(false);
+    }
+  };
+
+  // initial load
   useEffect(() => {
     fetchEmployees();
+    if (isAuthed) {
+      fetchAttendance();
+      fetchLeaves();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // tab-specific refresh
+  useEffect(() => {
+    if (!isAuthed) return;
+    if (tab === "attendance") fetchAttendance();
+    if (tab === "leaves") fetchLeaves();
+    if (tab === "dashboard") {
+      fetchEmployees();
+      fetchAttendance();
+      fetchLeaves();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, isAuthed]);
 
   const filteredEmployees = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -116,7 +164,6 @@ function App() {
     });
   }, [employees, query]);
 
-  // Save employee (Add or Update)
   const saveEmployee = async (e) => {
     e.preventDefault();
     try {
@@ -136,7 +183,6 @@ function App() {
         await api.post("/api/employees", payload);
       }
 
-      // reset form
       setEditId(null);
       setEmployeeId("");
       setFullName("");
@@ -144,7 +190,6 @@ function App() {
       setDepartment("Engineering");
 
       await fetchEmployees();
-      await fetchStats();
     } catch (err) {
       setEmpError(err?.response?.data?.message || "Failed to save employee.");
     } finally {
@@ -178,23 +223,8 @@ function App() {
       setEmpError("");
       await api.delete(`/api/employees/${id}`);
       await fetchEmployees();
-      await fetchStats();
     } catch (err) {
       setEmpError("Failed to delete employee.");
-    }
-  };
-
-  // ---------- ATTENDANCE ----------
-  const fetchAttendance = async () => {
-    try {
-      setAttLoading(true);
-      setAttError("");
-      const res = await api.get("/api/attendance");
-      setAttendance(res.data);
-    } catch (err) {
-      setAttError(err?.response?.data?.message || "Failed to load attendance.");
-    } finally {
-      setAttLoading(false);
     }
   };
 
@@ -213,23 +243,8 @@ function App() {
       setAttStatus("Present");
 
       await fetchAttendance();
-      await fetchStats();
     } catch (err) {
       setAttError(err?.response?.data?.message || "Failed to mark attendance.");
-    }
-  };
-
-  // ---------- LEAVES ----------
-  const fetchLeaves = async () => {
-    try {
-      setLvLoading(true);
-      setLvError("");
-      const res = await api.get("/api/leaves");
-      setLeaves(res.data);
-    } catch (err) {
-      setLvError(err?.response?.data?.message || "Failed to load leaves.");
-    } finally {
-      setLvLoading(false);
     }
   };
 
@@ -250,7 +265,6 @@ function App() {
       setReason("");
 
       await fetchLeaves();
-      await fetchStats();
     } catch (err) {
       setLvError(err?.response?.data?.message || "Failed to apply leave.");
     }
@@ -261,47 +275,302 @@ function App() {
       setLvError("");
       await api.put(`/api/leaves/${id}`, { status });
       await fetchLeaves();
-      await fetchStats();
     } catch (err) {
-      setLvError(err?.response?.data?.message || "Failed to update leave status.");
+      setLvError(
+        err?.response?.data?.message || "Failed to update leave status."
+      );
     }
   };
 
-  // ---------- STATS ----------
-  const fetchStats = async () => {
-    try {
-      const [empRes, attRes, leaveRes] = await Promise.all([
-        api.get("/api/employees"),
-        isAuthed ? api.get("/api/attendance") : Promise.resolve({ data: [] }),
-        isAuthed ? api.get("/api/leaves") : Promise.resolve({ data: [] }),
-      ]);
+  // ---------- DASHBOARD COMPUTED ----------
+  const dashboard = useMemo(() => {
+    const totalEmployees = employees.length;
 
-      const today = new Date().toISOString().slice(0, 10);
+    const presentToday = attendance.filter(
+      (a) => toYMD(a.date) === todayStr && a.status === "Present"
+    ).length;
 
-      const presentToday = (attRes.data || []).filter(
-        (a) => String(a.date).slice(0, 10) === today && a.status === "Present"
-      ).length;
+    const onLeaveToday = leaves.filter((l) => {
+      const status = (l.status || "").toLowerCase();
+      const approved = status === "approved";
+      const start = toYMD(l.fromDate);
+      const end = toYMD(l.toDate);
+      return approved && inRange(todayStr, start, end);
+    }).length;
 
-      const leavesPending = (leaveRes.data || []).filter((l) => l.status === "Pending").length;
+    const leavesPending = leaves.filter((l) => (l.status || "") === "Pending")
+      .length;
 
-      setStats({
-        totalEmployees: (empRes.data || []).length,
-        presentToday,
-        leavesPending,
-      });
-    } catch (err) {
-      console.log("Stats fetch error:", err?.message);
+    const deptMap = {};
+    for (const e of employees) {
+      const d = (e.department || "Unknown").trim();
+      deptMap[d] = (deptMap[d] || 0) + 1;
     }
+    const departments = Object.entries(deptMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totalEmployees,
+      presentToday,
+      onLeaveToday,
+      leavesPending,
+      departments,
+    };
+  }, [employees, attendance, leaves, todayStr]);
+
+  // ---------- MINI GRAPH (SVG) ----------
+  const DeptBarChart = ({ data }) => {
+    const top = (data || []).slice(0, 6);
+    const max = Math.max(1, ...top.map((d) => d.count));
+    const w = 520;
+    const h = 180;
+    const padL = 16;
+    const padR = 16;
+    const padT = 18;
+    const padB = 28;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const gap = 14;
+    const barW = top.length
+      ? (innerW - gap * (top.length - 1)) / top.length
+      : innerW;
+
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Departments (Top)</h2>
+          <p className="card-subtitle">Employee distribution by department</p>
+        </div>
+        <div className="card-body">
+          {top.length === 0 ? (
+            <div className="toast">No department data yet.</div>
+          ) : (
+            <svg
+              width="100%"
+              viewBox={`0 0 ${w} ${h}`}
+              role="img"
+              aria-label="Department bar chart"
+            >
+              <line
+                x1={padL}
+                y1={padT + innerH}
+                x2={padL + innerW}
+                y2={padT + innerH}
+                stroke="rgba(17,24,39,0.15)"
+                strokeWidth="2"
+              />
+
+              {top.map((d, i) => {
+                const x = padL + i * (barW + gap);
+                const barH = (d.count / max) * innerH;
+                const y = padT + (innerH - barH);
+
+                return (
+                  <g key={d.name}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barW}
+                      height={barH}
+                      rx="10"
+                      fill="rgba(17,24,39,0.85)"
+                    />
+                    <text
+                      x={x + barW / 2}
+                      y={y - 6}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="rgba(17,24,39,0.75)"
+                    >
+                      {d.count}
+                    </text>
+                    <text
+                      x={x + barW / 2}
+                      y={padT + innerH + 18}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="rgba(17,24,39,0.65)"
+                    >
+                      {d.name.length > 10 ? d.name.slice(0, 10) + "…" : d.name}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  useEffect(() => {
-    if (tab === "attendance" && isAuthed) fetchAttendance();
-    if (tab === "leaves" && isAuthed) fetchLeaves();
-    fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, isAuthed]);
+  // ---------- MONTHLY ATTENDANCE LINE GRAPH (SVG) ----------
+  const MonthlyAttendanceLineChart = ({ attendance }) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0-based
 
-  // ✅ INTERACTIVE LOGIN PAGE
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const monthLabel = now.toLocaleString(undefined, { month: "long", year: "numeric" });
+
+    // Build counts per day: Present count (you can also track Absent if you want)
+    const counts = Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      present: 0,
+    }));
+
+    for (const a of attendance || []) {
+      const d = toYMD(a.date);
+      if (!d) continue;
+      const [yy, mm, dd] = d.split("-");
+      if (!yy || !mm || !dd) continue;
+
+      const isThisMonth =
+        Number(yy) === year && Number(mm) === month + 1;
+
+      if (!isThisMonth) continue;
+
+      const dayIndex = Number(dd) - 1;
+      if (dayIndex < 0 || dayIndex >= daysInMonth) continue;
+
+      if (String(a.status) === "Present") {
+        counts[dayIndex].present += 1;
+      }
+    }
+
+    const maxY = Math.max(1, ...counts.map((c) => c.present));
+
+    // SVG sizing
+    const w = 920;
+    const h = 260;
+    const padL = 44;
+    const padR = 18;
+    const padT = 22;
+    const padB = 34;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+
+    // map functions
+    const xFor = (day) => {
+      if (daysInMonth === 1) return padL + innerW / 2;
+      return padL + ((day - 1) / (daysInMonth - 1)) * innerW;
+    };
+
+    const yFor = (val) => padT + (1 - val / maxY) * innerH;
+
+    // line path
+    const pathD = counts
+      .map((c, i) => {
+        const x = xFor(c.day);
+        const y = yFor(c.present);
+        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+      })
+      .join(" ");
+
+    // ticks (show 1, 8, 15, 22, 29-ish)
+    const tickDays = [1, 8, 15, 22, 29].filter((d) => d <= daysInMonth);
+
+    return (
+      <div className="card">
+        <div className="card-header">
+          <h2 className="card-title">Monthly Attendance (Present)</h2>
+          <p className="card-subtitle">{monthLabel} · Daily present count</p>
+        </div>
+        <div className="card-body">
+          {counts.every((c) => c.present === 0) ? (
+            <div className="toast">
+              No attendance marked for {now.toLocaleString(undefined, { month: "long" })} yet.
+            </div>
+          ) : (
+            <svg width="100%" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Monthly attendance line chart">
+              {/* axes */}
+              <line
+                x1={padL}
+                y1={padT + innerH}
+                x2={padL + innerW}
+                y2={padT + innerH}
+                stroke="rgba(17,24,39,0.15)"
+                strokeWidth="2"
+              />
+              <line
+                x1={padL}
+                y1={padT}
+                x2={padL}
+                y2={padT + innerH}
+                stroke="rgba(17,24,39,0.15)"
+                strokeWidth="2"
+              />
+
+              {/* y labels (0 and max) */}
+              <text x={padL - 10} y={padT + innerH + 4} textAnchor="end" fontSize="12" fill="rgba(17,24,39,0.55)">
+                0
+              </text>
+              <text x={padL - 10} y={padT + 4} textAnchor="end" fontSize="12" fill="rgba(17,24,39,0.55)">
+                {maxY}
+              </text>
+
+              {/* x ticks */}
+              {tickDays.map((d) => {
+                const x = xFor(d);
+                return (
+                  <g key={d}>
+                    <line
+                      x1={x}
+                      y1={padT + innerH}
+                      x2={x}
+                      y2={padT + innerH + 6}
+                      stroke="rgba(17,24,39,0.25)"
+                    />
+                    <text
+                      x={x}
+                      y={padT + innerH + 22}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fill="rgba(17,24,39,0.55)"
+                    >
+                      {d}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* line */}
+              <path d={pathD} fill="none" stroke="rgba(17,24,39,0.85)" strokeWidth="3" />
+
+              {/* points */}
+              {counts.map((c) => {
+                const x = xFor(c.day);
+                const y = yFor(c.present);
+                return (
+                  <circle
+                    key={c.day}
+                    cx={x}
+                    cy={y}
+                    r="3.5"
+                    fill="rgba(17,24,39,0.85)"
+                    opacity={c.present === 0 ? 0.25 : 1}
+                  />
+                );
+              })}
+            </svg>
+          )}
+
+          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <span className="status">
+              Month Total Present:{" "}
+              {counts.reduce((sum, c) => sum + c.present, 0)}
+            </span>
+            <span className="status">
+              Max Daily Present: {maxY}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ✅ LOGIN PAGE
   if (!isAuthed) {
     return (
       <div className="login-page">
@@ -352,42 +621,45 @@ function App() {
     );
   }
 
-  // ✅ SIDEBAR LAYOUT (using your CSS)
+  // ---------- APP (SIDEBAR) ----------
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="side-head">
           <div className="side-title">HRMS Lite</div>
-          <span className="badge">Admin Dashboard</span>
+          <span className="badge" style={{ width: "fit-content" }}>
+            Admin Dashboard
+          </span>
         </div>
 
         <div className="side-section">
           <div className="side-label">Navigation</div>
-
           <div className="side-nav">
-            <button
-              className={`side-btn ${tab === "employees" ? "active" : ""}`}
-              onClick={() => setTab("employees")}
-            >
-              Employees <span className="side-pill">{stats.totalEmployees}</span>
+            <button className={`side-btn ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>
+              <span>Dashboard</span>
+              <span className="side-pill">{dashboard.totalEmployees}</span>
             </button>
 
-            <button
-              className={`side-btn ${tab === "attendance" ? "active" : ""}`}
-              onClick={() => setTab("attendance")}
-            >
-              Attendance <span className="side-pill">{stats.presentToday}</span>
+            <button className={`side-btn ${tab === "employees" ? "active" : ""}`} onClick={() => setTab("employees")}>
+              <span>Employees</span>
+              <span className="side-pill">{employees.length}</span>
+            </button>
+
+            <button className={`side-btn ${tab === "attendance" ? "active" : ""}`} onClick={() => setTab("attendance")}>
+              <span>Attendance</span>
+              <span className="side-pill">{dashboard.presentToday}</span>
             </button>
 
             <button className={`side-btn ${tab === "leaves" ? "active" : ""}`} onClick={() => setTab("leaves")}>
-              Leaves <span className="side-pill">{stats.leavesPending}</span>
+              <span>Leaves</span>
+              <span className="side-pill">{dashboard.leavesPending}</span>
             </button>
           </div>
         </div>
 
         <div className="side-footer">
-          <span className="badge">JWT: Saved</span>
-          <button className="secondary" onClick={logout} style={{ width: "100%" }}>
+          <div className="badge">JWT: Saved</div>
+          <button className="secondary" style={{ width: "100%" }} onClick={logout}>
             Logout
           </button>
         </div>
@@ -399,7 +671,7 @@ function App() {
 
           <div className="page-top">
             <div className="page-title">
-              {tab === "employees" ? "Employees" : tab === "attendance" ? "Attendance" : "Leaves"}
+              {tab === "dashboard" ? "Dashboard" : tab === "employees" ? "Employees" : tab === "attendance" ? "Attendance" : "Leaves"}
             </div>
 
             <div className="page-actions">
@@ -416,13 +688,23 @@ function App() {
                   </button>
                 </>
               )}
-
+              {tab === "dashboard" && (
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    fetchEmployees();
+                    fetchAttendance();
+                    fetchLeaves();
+                  }}
+                >
+                  Refresh Dashboard
+                </button>
+              )}
               {tab === "attendance" && (
                 <button className="secondary" onClick={fetchAttendance}>
                   Refresh Attendance
                 </button>
               )}
-
               {tab === "leaves" && (
                 <button className="secondary" onClick={fetchLeaves}>
                   Refresh Leaves
@@ -431,7 +713,80 @@ function App() {
             </div>
           </div>
 
-          {/* EMPLOYEES */}
+          {/* ================= DASHBOARD PAGE ================= */}
+          {tab === "dashboard" && (
+            <>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <h3>Total Employees</h3>
+                  <p>{dashboard.totalEmployees}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Present Today</h3>
+                  <p>{dashboard.presentToday}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>On Leave (Today)</h3>
+                  <p>{dashboard.onLeaveToday}</p>
+                </div>
+                <div className="stat-card">
+                  <h3>Pending Leaves</h3>
+                  <p>{dashboard.leavesPending}</p>
+                </div>
+              </div>
+
+              {/* Monthly Attendance Line Graph */}
+              <div style={{ marginTop: 18 }}>
+                <MonthlyAttendanceLineChart attendance={attendance} />
+              </div>
+
+              <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                {/* Departments list */}
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Departments</h2>
+                    <p className="card-subtitle">Total unique: {dashboard.departments.length}</p>
+                  </div>
+                  <div className="card-body">
+                    {dashboard.departments.length === 0 ? (
+                      <div className="toast">No employees yet.</div>
+                    ) : (
+                      <div className="table-wrap" style={{ minWidth: "unset" }}>
+                        <table style={{ minWidth: 0 }}>
+                          <thead>
+                            <tr>
+                              <th>Department</th>
+                              <th>Employees</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dashboard.departments.map((d) => (
+                              <tr key={d.name}>
+                                <td>{d.name}</td>
+                                <td>
+                                  <span className="status">{d.count}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Graph */}
+                <DeptBarChart data={dashboard.departments} />
+              </div>
+
+              <div style={{ marginTop: 18, color: "var(--muted)", fontSize: 12 }}>
+                Today: <b>{todayStr}</b> · Present is calculated from attendance records. On Leave counts only{" "}
+                <b>Approved</b> leaves.
+              </div>
+            </>
+          )}
+
+          {/* ================= EMPLOYEES PAGE ================= */}
           {tab === "employees" && (
             <>
               {empError && <div className="toast error">{empError}</div>}
@@ -460,12 +815,23 @@ function App() {
 
                       <div className="row">
                         <label>Full Name</label>
-                        <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" required />
+                        <input
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Full name"
+                          required
+                        />
                       </div>
 
                       <div className="row">
                         <label>Email</label>
-                        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@gmail.com" required type="email" />
+                        <input
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="email@gmail.com"
+                          required
+                          type="email"
+                        />
                       </div>
 
                       <div className="row">
@@ -477,6 +843,7 @@ function App() {
                           <option>Marketing</option>
                           <option>Finance</option>
                           <option>Operations</option>
+                          <option>IT</option>
                         </select>
                       </div>
 
@@ -485,7 +852,12 @@ function App() {
                       </button>
 
                       {editId && (
-                        <button type="button" className="secondary" onClick={cancelEdit} style={{ marginTop: 10 }}>
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={cancelEdit}
+                          style={{ marginTop: 10 }}
+                        >
                           Cancel Edit
                         </button>
                       )}
@@ -548,7 +920,7 @@ function App() {
             </>
           )}
 
-          {/* ATTENDANCE */}
+          {/* ================= ATTENDANCE PAGE ================= */}
           {tab === "attendance" && (
             <>
               {attError && <div className="toast error">{attError}</div>}
@@ -564,7 +936,12 @@ function App() {
                     <form onSubmit={markAttendance}>
                       <div className="row">
                         <label>Employee ID</label>
-                        <input value={attEmployeeId} onChange={(e) => setAttEmployeeId(e.target.value)} placeholder="EMP001" required />
+                        <input
+                          value={attEmployeeId}
+                          onChange={(e) => setAttEmployeeId(e.target.value)}
+                          placeholder="EMP001"
+                          required
+                        />
                       </div>
 
                       <div className="row">
@@ -607,7 +984,7 @@ function App() {
                             {attendance.map((a) => (
                               <tr key={a._id}>
                                 <td>{a.employeeId}</td>
-                                <td>{String(a.date).slice(0, 10)}</td>
+                                <td>{toYMD(a.date)}</td>
                                 <td>
                                   <span className="status">{a.status}</span>
                                 </td>
@@ -623,7 +1000,7 @@ function App() {
             </>
           )}
 
-          {/* LEAVES */}
+          {/* ================= LEAVES PAGE ================= */}
           {tab === "leaves" && (
             <>
               {lvError && <div className="toast error">{lvError}</div>}
@@ -639,7 +1016,12 @@ function App() {
                     <form onSubmit={applyLeave}>
                       <div className="row">
                         <label>Employee ID</label>
-                        <input value={lvEmployeeId} onChange={(e) => setLvEmployeeId(e.target.value)} placeholder="EMP001" required />
+                        <input
+                          value={lvEmployeeId}
+                          onChange={(e) => setLvEmployeeId(e.target.value)}
+                          placeholder="EMP001"
+                          required
+                        />
                       </div>
 
                       <div className="row">
@@ -688,8 +1070,8 @@ function App() {
                             {leaves.map((l) => (
                               <tr key={l._id}>
                                 <td>{l.employeeId}</td>
-                                <td>{String(l.fromDate).slice(0, 10)}</td>
-                                <td>{String(l.toDate).slice(0, 10)}</td>
+                                <td>{toYMD(l.fromDate)}</td>
+                                <td>{toYMD(l.toDate)}</td>
                                 <td>{l.reason}</td>
                                 <td>
                                   <span className="status">{l.status}</span>
@@ -717,7 +1099,7 @@ function App() {
           )}
 
           <div style={{ marginTop: 18, color: "var(--muted)", fontSize: 12 }}>
-            Tip: Render free backend may sleep. If a protected page shows error once, login and refresh.
+            Tip: Render free backend may sleep. If something fails once, refresh dashboard.
           </div>
         </div>
       </main>
@@ -726,3 +1108,4 @@ function App() {
 }
 
 export default App;
+
