@@ -17,12 +17,14 @@ body {
   color: var(--text);
 }
 
+/* Layout */
 .container {
   max-width: 1100px;
   margin: 0 auto;
   padding: 28px 18px 60px;
 }
 
+/* Navbar */
 .navbar {
   position: sticky;
   top: 0;
@@ -58,6 +60,7 @@ body {
   color: var(--muted);
 }
 
+/* Grid */
 .grid {
   display: grid;
   grid-template-columns: 420px 1fr;
@@ -69,6 +72,7 @@ body {
   .grid { grid-template-columns: 1fr; }
 }
 
+/* Cards */
 .card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -95,6 +99,7 @@ body {
   padding: 16px;
 }
 
+/* Form rows */
 .row {
   display: grid;
   gap: 6px;
@@ -120,6 +125,7 @@ input:focus, select:focus {
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
 }
 
+/* Buttons */
 .actions {
   display: flex;
   gap: 10px;
@@ -153,6 +159,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Tables */
 .table-wrap {
   overflow: auto;
   border-radius: 12px;
@@ -181,6 +188,7 @@ th {
   background: #fafafa;
 }
 
+/* Status Pills */
 .status {
   padding: 6px 10px;
   border-radius: 999px;
@@ -190,6 +198,7 @@ th {
   color: var(--muted);
 }
 
+/* Toast Messages */
 .toast {
   margin-top: 12px;
   padding: 10px 12px;
@@ -203,4 +212,154 @@ th {
   border-color: #fecaca;
   color: #991b1b;
   background: #fff5f5;
+}
+
+/* Dashboard Stats */
+.stats-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap:14px;
+  margin-top:16px;
+}
+
+.stat-card{
+  background:#fff;
+  border:1px solid #e7e7e7;
+  border-radius:14px;
+  padding:18px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.04);
+}
+
+.stat-card h3{
+  margin:0;
+  font-size:14px;
+  color:#555;
+}
+
+.stat-card p{
+  margin:8px 0 0;
+  font-size:28px;
+  font-weight:700;
+}
+
+/* =========================
+   LOGIN PAGE (BOTTOM)
+   ========================= */
+
+.login-page{
+  min-height: 100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+  background: linear-gradient(135deg, #f5f7ff, #eef2ff, #ffffff);
+}
+
+.login-card{
+  width: 100%;
+  max-width: 420px;
+  background:#fff;
+  border:1px solid #e7e7e7;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* premium highlight bubble */
+.login-card::before{
+  content:"";
+  position:absolute;
+  top:-60px;
+  left:-60px;
+  width:160px;
+  height:160px;
+  background: rgba(99,102,241,0.15);
+  border-radius: 50%;
+}
+
+.login-head h1{
+  margin:0;
+  font-size: 26px;
+  position: relative;
+}
+
+.login-head p{
+  margin:6px 0 0;
+  color:#666;
+  font-size: 13px;
+  position: relative;
+}
+
+.login-alert{
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  border: 1px solid #e7e7e7;
+  background: #f7f7f7;
+  position: relative;
+}
+
+.login-alert.err{
+  border-color:#ffd1d1;
+  background:#fff3f3;
+}
+
+.login-alert.ok{
+  border-color:#cfe9d4;
+  background:#f1fff3;
+}
+
+.login-form{
+  margin-top: 16px;
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.login-form label{
+  font-size: 13px;
+  color:#444;
+}
+
+.login-form input{
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid #dcdcdc;
+  outline:none;
+}
+
+.pass-wrap{
+  display:flex;
+  gap: 8px;
+  align-items:center;
+}
+
+.pass-btn{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #dcdcdc;
+  background: #fff;
+  cursor:pointer;
+  white-space: nowrap;
+}
+
+.login-btn{
+  margin-top: 6px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  cursor:pointer;
+  font-weight: 600;
+}
+
+.login-footer{
+  margin-top: 10px;
+  font-size: 12px;
+  color:#777;
 }
