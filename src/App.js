@@ -70,7 +70,6 @@ function App() {
       setToken(res.data.token);
       setAuthMsg("Login successful ✅");
 
-      // after login, refresh protected data
       await Promise.all([fetchAttendance(), fetchLeaves(), fetchStats()]);
     } catch (err) {
       setAuthMsg(err?.response?.data?.message || "Login failed ❌");
@@ -83,6 +82,7 @@ function App() {
     localStorage.removeItem("token");
     setToken("");
     setAuthMsg("Logged out ✅");
+    setTab("employees");
   };
 
   // ---------- EMPLOYEES ----------
@@ -352,386 +352,376 @@ function App() {
     );
   }
 
-  // ---------- UI ----------
+  // ✅ SIDEBAR LAYOUT (using your CSS)
   return (
-    <>
-      <div className="navbar">
-        <div className="nav-inner">
-          <div className="brand">
-            HRMS Lite <span className="badge">Admin Dashboard</span>
-          </div>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="side-head">
+          <div className="side-title">HRMS Lite</div>
+          <span className="badge">Admin Dashboard</span>
+        </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span className="badge">JWT: Saved</span>
-            <button className="secondary" onClick={logout}>
-              Logout
+        <div className="side-section">
+          <div className="side-label">Navigation</div>
+
+          <div className="side-nav">
+            <button
+              className={`side-btn ${tab === "employees" ? "active" : ""}`}
+              onClick={() => setTab("employees")}
+            >
+              Employees <span className="side-pill">{stats.totalEmployees}</span>
+            </button>
+
+            <button
+              className={`side-btn ${tab === "attendance" ? "active" : ""}`}
+              onClick={() => setTab("attendance")}
+            >
+              Attendance <span className="side-pill">{stats.presentToday}</span>
+            </button>
+
+            <button className={`side-btn ${tab === "leaves" ? "active" : ""}`} onClick={() => setTab("leaves")}>
+              Leaves <span className="side-pill">{stats.leavesPending}</span>
             </button>
           </div>
         </div>
-      </div>
 
-      <div className="container">
-        {authMsg && (
-          <div className={`toast ${authMsg.includes("❌") ? "error" : ""}`}>
-            {authMsg}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-          <button className={tab === "employees" ? "" : "secondary"} onClick={() => setTab("employees")}>
-            Employees
+        <div className="side-footer">
+          <span className="badge">JWT: Saved</span>
+          <button className="secondary" onClick={logout} style={{ width: "100%" }}>
+            Logout
           </button>
-          <button className={tab === "attendance" ? "" : "secondary"} onClick={() => setTab("attendance")}>
-            Attendance
-          </button>
-          <button className={tab === "leaves" ? "" : "secondary"} onClick={() => setTab("leaves")}>
-            Leaves
-          </button>
-
-          <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-            {tab === "employees" && (
-              <input
-                style={{ width: 260 }}
-                placeholder="Search employees..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            )}
-            {tab === "employees" && (
-              <button className="secondary" onClick={fetchEmployees} disabled={empLoading}>
-                {empLoading ? "Refreshing..." : "Refresh"}
-              </button>
-            )}
-          </div>
         </div>
+      </aside>
 
-        {/* Dashboard Stats */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <h3>Total Employees</h3>
-            <p>{stats.totalEmployees}</p>
+      <main className="main">
+        <div className="container">
+          {authMsg && <div className={`toast ${authMsg.includes("❌") ? "error" : ""}`}>{authMsg}</div>}
+
+          <div className="page-top">
+            <div className="page-title">
+              {tab === "employees" ? "Employees" : tab === "attendance" ? "Attendance" : "Leaves"}
+            </div>
+
+            <div className="page-actions">
+              {tab === "employees" && (
+                <>
+                  <input
+                    style={{ width: 280 }}
+                    placeholder="Search employees..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                  <button className="secondary" onClick={fetchEmployees} disabled={empLoading}>
+                    {empLoading ? "Refreshing..." : "Refresh"}
+                  </button>
+                </>
+              )}
+
+              {tab === "attendance" && (
+                <button className="secondary" onClick={fetchAttendance}>
+                  Refresh Attendance
+                </button>
+              )}
+
+              {tab === "leaves" && (
+                <button className="secondary" onClick={fetchLeaves}>
+                  Refresh Leaves
+                </button>
+              )}
+            </div>
           </div>
-          <div className="stat-card">
-            <h3>Present Today</h3>
-            <p>{stats.presentToday}</p>
-          </div>
-          <div className="stat-card">
-            <h3>Leaves Pending</h3>
-            <p>{stats.leavesPending}</p>
-          </div>
-        </div>
 
-        {/* EMPLOYEES PAGE */}
-        {tab === "employees" && (
-          <>
-            {empError && <div className="toast error">{empError}</div>}
-            {!empError && empLoading && <div className="toast">Loading employees…</div>}
+          {/* EMPLOYEES */}
+          {tab === "employees" && (
+            <>
+              {empError && <div className="toast error">{empError}</div>}
+              {!empError && empLoading && <div className="toast">Loading employees…</div>}
 
-            <div className="grid">
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">{editId ? "Edit Employee" : "Add Employee"}</h2>
-                  <p className="card-subtitle">
-                    {editId ? "Update employee record." : "Create a new employee record."}
-                  </p>
-                </div>
-                <div className="card-body">
-                  <form onSubmit={saveEmployee}>
-                    <div className="row">
-                      <label>Employee ID</label>
-                      <input
-                        value={employeeId}
-                        onChange={(e) => setEmployeeId(e.target.value)}
-                        placeholder="EMP001"
-                        required
-                        disabled={!!editId}
-                      />
-                    </div>
-                    <div className="row">
-                      <label>Full Name</label>
-                      <input
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Full name"
-                        required
-                      />
-                    </div>
-                    <div className="row">
-                      <label>Email</label>
-                      <input
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="email@gmail.com"
-                        required
-                        type="email"
-                      />
-                    </div>
-                    <div className="row">
-                      <label>Department</label>
-                      <select value={department} onChange={(e) => setDepartment(e.target.value)}>
-                        <option>Engineering</option>
-                        <option>HR</option>
-                        <option>Sales</option>
-                        <option>Marketing</option>
-                        <option>Finance</option>
-                        <option>Operations</option>
-                      </select>
-                    </div>
+              <div className="grid">
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">{editId ? "Edit Employee" : "Add Employee"}</h2>
+                    <p className="card-subtitle">
+                      {editId ? "Update employee record." : "Create a new employee record."}
+                    </p>
+                  </div>
+                  <div className="card-body">
+                    <form onSubmit={saveEmployee}>
+                      <div className="row">
+                        <label>Employee ID</label>
+                        <input
+                          value={employeeId}
+                          onChange={(e) => setEmployeeId(e.target.value)}
+                          placeholder="EMP001"
+                          required
+                          disabled={!!editId}
+                        />
+                      </div>
 
-                    <button type="submit" disabled={savingEmp}>
-                      {savingEmp ? "Saving..." : editId ? "Update Employee" : "Add Employee"}
-                    </button>
+                      <div className="row">
+                        <label>Full Name</label>
+                        <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" required />
+                      </div>
 
-                    {editId && (
-                      <button type="button" className="secondary" onClick={cancelEdit} style={{ marginTop: 10 }}>
-                        Cancel Edit
+                      <div className="row">
+                        <label>Email</label>
+                        <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@gmail.com" required type="email" />
+                      </div>
+
+                      <div className="row">
+                        <label>Department</label>
+                        <select value={department} onChange={(e) => setDepartment(e.target.value)}>
+                          <option>Engineering</option>
+                          <option>HR</option>
+                          <option>Sales</option>
+                          <option>Marketing</option>
+                          <option>Finance</option>
+                          <option>Operations</option>
+                        </select>
+                      </div>
+
+                      <button type="submit" disabled={savingEmp}>
+                        {savingEmp ? "Saving..." : editId ? "Update Employee" : "Add Employee"}
                       </button>
+
+                      {editId && (
+                        <button type="button" className="secondary" onClick={cancelEdit} style={{ marginTop: 10 }}>
+                          Cancel Edit
+                        </button>
+                      )}
+                    </form>
+
+                    <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+                      <span className="status">Total: {employees.length}</span>
+                      <span className="status">Showing: {filteredEmployees.length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Employee Directory</h2>
+                    <p className="card-subtitle">Live data from MongoDB.</p>
+                  </div>
+
+                  <div className="card-body">
+                    {!empLoading && filteredEmployees.length === 0 ? (
+                      <div className="toast">No employees found. Add your first employee.</div>
+                    ) : (
+                      <div className="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Employee ID</th>
+                              <th>Full Name</th>
+                              <th>Email</th>
+                              <th>Department</th>
+                              <th style={{ width: 220 }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredEmployees.map((emp) => (
+                              <tr key={emp._id}>
+                                <td>{emp.employeeId || "-"}</td>
+                                <td>{emp.fullName || "-"}</td>
+                                <td>{emp.email}</td>
+                                <td>{emp.department || "-"}</td>
+                                <td>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <button className="secondary" onClick={() => startEdit(emp)}>
+                                      Edit
+                                    </button>
+                                    <button className="danger" onClick={() => deleteEmployee(emp._id)}>
+                                      Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
-                  </form>
-
-                  <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-                    <span className="status">Total: {employees.length}</span>
-                    <span className="status">Showing: {filteredEmployees.length}</span>
                   </div>
                 </div>
               </div>
+            </>
+          )}
 
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Employee Directory</h2>
-                  <p className="card-subtitle">Live data from MongoDB.</p>
+          {/* ATTENDANCE */}
+          {tab === "attendance" && (
+            <>
+              {attError && <div className="toast error">{attError}</div>}
+              {attLoading && <div className="toast">Loading attendance…</div>}
+
+              <div className="grid">
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Mark Attendance</h2>
+                    <p className="card-subtitle">Create a new attendance entry.</p>
+                  </div>
+                  <div className="card-body">
+                    <form onSubmit={markAttendance}>
+                      <div className="row">
+                        <label>Employee ID</label>
+                        <input value={attEmployeeId} onChange={(e) => setAttEmployeeId(e.target.value)} placeholder="EMP001" required />
+                      </div>
+
+                      <div className="row">
+                        <label>Date</label>
+                        <input value={attDate} onChange={(e) => setAttDate(e.target.value)} type="date" required />
+                      </div>
+
+                      <div className="row">
+                        <label>Status</label>
+                        <select value={attStatus} onChange={(e) => setAttStatus(e.target.value)}>
+                          <option>Present</option>
+                          <option>Absent</option>
+                        </select>
+                      </div>
+
+                      <button type="submit">Save Attendance</button>
+                    </form>
+                  </div>
                 </div>
 
-                <div className="card-body">
-                  {!empLoading && filteredEmployees.length === 0 ? (
-                    <div className="toast">No employees found. Add your first employee.</div>
-                  ) : (
-                    <div className="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Employee ID</th>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Department</th>
-                            <th style={{ width: 220 }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredEmployees.map((emp) => (
-                            <tr key={emp._id}>
-                              <td>{emp.employeeId || "-"}</td>
-                              <td>{emp.fullName || "-"}</td>
-                              <td>{emp.email}</td>
-                              <td>{emp.department || "-"}</td>
-                              <td>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                  <button className="secondary" onClick={() => startEdit(emp)}>
-                                    Edit
-                                  </button>
-                                  <button className="danger" onClick={() => deleteEmployee(emp._id)}>
-                                    Delete
-                                  </button>
-                                </div>
-                              </td>
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Attendance Records</h2>
+                    <p className="card-subtitle">All records from database.</p>
+                  </div>
+                  <div className="card-body">
+                    {!attLoading && attendance.length === 0 ? (
+                      <div className="toast">No attendance records yet.</div>
+                    ) : (
+                      <div className="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Employee ID</th>
+                              <th>Date</th>
+                              <th>Status</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ATTENDANCE PAGE */}
-        {tab === "attendance" && (
-          <>
-            {attError && <div className="toast error">{attError}</div>}
-            {attLoading && <div className="toast">Loading attendance…</div>}
-
-            <div className="grid">
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Mark Attendance</h2>
-                  <p className="card-subtitle">Create a new attendance entry.</p>
-                </div>
-                <div className="card-body">
-                  <form onSubmit={markAttendance}>
-                    <div className="row">
-                      <label>Employee ID</label>
-                      <input value={attEmployeeId} onChange={(e) => setAttEmployeeId(e.target.value)} placeholder="EMP001" required />
-                    </div>
-
-                    <div className="row">
-                      <label>Date</label>
-                      <input value={attDate} onChange={(e) => setAttDate(e.target.value)} type="date" required />
-                    </div>
-
-                    <div className="row">
-                      <label>Status</label>
-                      <select value={attStatus} onChange={(e) => setAttStatus(e.target.value)}>
-                        <option>Present</option>
-                        <option>Absent</option>
-                      </select>
-                    </div>
-
-                    <button type="submit">Save Attendance</button>
-                  </form>
-
-                  <div style={{ marginTop: 12 }}>
-                    <button className="secondary" onClick={fetchAttendance}>
-                      Refresh Attendance
-                    </button>
+                          </thead>
+                          <tbody>
+                            {attendance.map((a) => (
+                              <tr key={a._id}>
+                                <td>{a.employeeId}</td>
+                                <td>{String(a.date).slice(0, 10)}</td>
+                                <td>
+                                  <span className="status">{a.status}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+            </>
+          )}
 
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Attendance Records</h2>
-                  <p className="card-subtitle">All records from database.</p>
+          {/* LEAVES */}
+          {tab === "leaves" && (
+            <>
+              {lvError && <div className="toast error">{lvError}</div>}
+              {lvLoading && <div className="toast">Loading leaves…</div>}
+
+              <div className="grid">
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Apply Leave</h2>
+                    <p className="card-subtitle">Create a leave request (default: Pending).</p>
+                  </div>
+                  <div className="card-body">
+                    <form onSubmit={applyLeave}>
+                      <div className="row">
+                        <label>Employee ID</label>
+                        <input value={lvEmployeeId} onChange={(e) => setLvEmployeeId(e.target.value)} placeholder="EMP001" required />
+                      </div>
+
+                      <div className="row">
+                        <label>From</label>
+                        <input value={fromDate} onChange={(e) => setFromDate(e.target.value)} type="date" required />
+                      </div>
+
+                      <div className="row">
+                        <label>To</label>
+                        <input value={toDate} onChange={(e) => setToDate(e.target.value)} type="date" required />
+                      </div>
+
+                      <div className="row">
+                        <label>Reason</label>
+                        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Family function" required />
+                      </div>
+
+                      <button type="submit">Submit Leave</button>
+                    </form>
+                  </div>
                 </div>
-                <div className="card-body">
-                  {!attLoading && attendance.length === 0 ? (
-                    <div className="toast">No attendance records yet.</div>
-                  ) : (
-                    <div className="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Employee ID</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {attendance.map((a) => (
-                            <tr key={a._id}>
-                              <td>{a.employeeId}</td>
-                              <td>{String(a.date).slice(0, 10)}</td>
-                              <td>
-                                <span className="status">{a.status}</span>
-                              </td>
+
+                <div className="card">
+                  <div className="card-header">
+                    <h2 className="card-title">Leave Requests</h2>
+                    <p className="card-subtitle">Approve/Reject as admin.</p>
+                  </div>
+
+                  <div className="card-body">
+                    {!lvLoading && leaves.length === 0 ? (
+                      <div className="toast">No leave requests yet.</div>
+                    ) : (
+                      <div className="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Employee ID</th>
+                              <th>From</th>
+                              <th>To</th>
+                              <th>Reason</th>
+                              <th>Status</th>
+                              <th style={{ width: 220 }}>Action</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* LEAVES PAGE */}
-        {tab === "leaves" && (
-          <>
-            {lvError && <div className="toast error">{lvError}</div>}
-            {lvLoading && <div className="toast">Loading leaves…</div>}
-
-            <div className="grid">
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Apply Leave</h2>
-                  <p className="card-subtitle">Create a leave request (default: Pending).</p>
-                </div>
-                <div className="card-body">
-                  <form onSubmit={applyLeave}>
-                    <div className="row">
-                      <label>Employee ID</label>
-                      <input value={lvEmployeeId} onChange={(e) => setLvEmployeeId(e.target.value)} placeholder="EMP001" required />
-                    </div>
-
-                    <div className="row">
-                      <label>From</label>
-                      <input value={fromDate} onChange={(e) => setFromDate(e.target.value)} type="date" required />
-                    </div>
-
-                    <div className="row">
-                      <label>To</label>
-                      <input value={toDate} onChange={(e) => setToDate(e.target.value)} type="date" required />
-                    </div>
-
-                    <div className="row">
-                      <label>Reason</label>
-                      <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Family function" required />
-                    </div>
-
-                    <button type="submit">Submit Leave</button>
-                  </form>
-
-                  <div style={{ marginTop: 12 }}>
-                    <button className="secondary" onClick={fetchLeaves}>
-                      Refresh Leaves
-                    </button>
+                          </thead>
+                          <tbody>
+                            {leaves.map((l) => (
+                              <tr key={l._id}>
+                                <td>{l.employeeId}</td>
+                                <td>{String(l.fromDate).slice(0, 10)}</td>
+                                <td>{String(l.toDate).slice(0, 10)}</td>
+                                <td>{l.reason}</td>
+                                <td>
+                                  <span className="status">{l.status}</span>
+                                </td>
+                                <td>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <button className="secondary" onClick={() => updateLeaveStatus(l._id, "Approved")}>
+                                      Approve
+                                    </button>
+                                    <button className="danger" onClick={() => updateLeaveStatus(l._id, "Rejected")}>
+                                      Reject
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+            </>
+          )}
 
-              <div className="card">
-                <div className="card-header">
-                  <h2 className="card-title">Leave Requests</h2>
-                  <p className="card-subtitle">Approve/Reject as admin.</p>
-                </div>
-
-                <div className="card-body">
-                  {!lvLoading && leaves.length === 0 ? (
-                    <div className="toast">No leave requests yet.</div>
-                  ) : (
-                    <div className="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Employee ID</th>
-                            <th>From</th>
-                            <th>To</th>
-                            <th>Reason</th>
-                            <th>Status</th>
-                            <th style={{ width: 220 }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {leaves.map((l) => (
-                            <tr key={l._id}>
-                              <td>{l.employeeId}</td>
-                              <td>{String(l.fromDate).slice(0, 10)}</td>
-                              <td>{String(l.toDate).slice(0, 10)}</td>
-                              <td>{l.reason}</td>
-                              <td>
-                                <span className="status">{l.status}</span>
-                              </td>
-                              <td>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                  <button className="secondary" onClick={() => updateLeaveStatus(l._id, "Approved")}>
-                                    Approve
-                                  </button>
-                                  <button className="danger" onClick={() => updateLeaveStatus(l._id, "Rejected")}>
-                                    Reject
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div style={{ marginTop: 18, color: "var(--muted)", fontSize: 12 }}>
-          Tip: Render free backend may sleep. If a protected page shows error once, login and refresh.
+          <div style={{ marginTop: 18, color: "var(--muted)", fontSize: 12 }}>
+            Tip: Render free backend may sleep. If a protected page shows error once, login and refresh.
+          </div>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
 
